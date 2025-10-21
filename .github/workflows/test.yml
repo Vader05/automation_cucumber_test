@@ -59,7 +59,7 @@ jobs:
         # Usamos 'always()' para ejecutarlo incluso si el paso de tests falló.
         if: always()
         run: |
-          REPORT_FILE="target/Cucumber.json"
+          REPORT_FILE="target/cucumber.json"
 
           # 1. Verificar si el token existe
           if [ -z "${XRAY_TOKEN}" ]; then

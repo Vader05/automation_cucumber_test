@@ -59,13 +59,28 @@ jobs:
         # Usamos 'always()' para ejecutarlo incluso si el paso de tests falló.
         if: always()
         run: |
-          # Solo se ejecuta si el token existe, para evitar errores si la autenticación falló.
+          REPORT_FILE="target/Cucumber.json"
+
+          # 1. Verificar si el token existe
           if [ -z "${XRAY_TOKEN}" ]; then
             echo "Error: XRAY_TOKEN no se pudo obtener. Saltando subida de resultados."
-            exit 0 # Salir con éxito para no fallar el job si es un fallo de autenticación
+            exit 0
           fi
 
-          # 1. Ajusta la ruta del archivo si tu Cucumber lo deja en otro sitio
+          # 2. Verificar la existencia del archivo
+          if [ ! -f "$REPORT_FILE" ]; then
+            echo "ERROR CRÍTICO: Archivo de reporte no encontrado en $REPORT_FILE."
+            exit 1 
+          fi
+
+          # *** PASO CLAVE DE DIAGNÓSTICO ***
+          echo "=================================================="
+          echo "Contenido de $REPORT_FILE (DEBUG):"
+          cat $REPORT_FILE
+          echo "=================================================="
+          
+          # 3. Subir Resultados
+          echo "Iniciando subida a Xray..."
           curl -s -X POST "https://xray.cloud.getxray.app/api/v2/import/execution/cucumber" \
             -H "Authorization: Bearer ${XRAY_TOKEN}" \
-            -F "file=@target/cucumber.json"
+            -F "file=@$REPORT_FILE"

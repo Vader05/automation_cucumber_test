@@ -7,4 +7,4 @@ Feature: Pruebas de API
     When hago una petición GET a "/users/1"
     Then el código de respuesta debe ser 200
     And el campo "id" debe ser 1
-    And el campo "name" debe ser "Raúl Torres"
+    And el campo "name" debe ser "Leanne Graham"

@@ -81,13 +81,15 @@ jobs:
           cat <<EOF > info.json
           {
             "testExecutionKey": "P123-16",
-            "project": "P123",
-            "summary": "Resultados automáticos desde GitHub Actions",
-            "description": "Subida automática desde workflow run $(date -u)",
-            "version": "1.0",
-            "revision": "latest",
-            "user": "automation@xray",
-            "testEnvironments": ["staging"]
+            "info": {
+              "project": "P123",
+              "summary": "Resultados automáticos desde GitHub Actions",
+              "description": "Subida automática desde workflow run $(date -u)",
+              "version": "1.0",
+              "revision": "latest",
+              "user": "automation@xray",
+              "testEnvironments": ["staging"]
+            }
           }
           EOF
 

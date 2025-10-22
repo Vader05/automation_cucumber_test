@@ -17,19 +17,7 @@
         <xray.plugin.version>3.5.0</xray.plugin.version>
     </properties>
 
-    <!-- 🛑 REINTRODUCIDO: Es necesario para que Maven sepa dónde buscar el plugin 'xray-maven-plugin' que NO está en Central. -->
-    <pluginRepositories>
-        <pluginRepository>
-            <id>xpandit-xray-repo</id>
-            <url>https://xpeho.jfrog.io/xpeho/xray-maven-repo</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </pluginRepository>
-    </pluginRepositories>
+    <!-- 🛑 ELIMINAMOS pluginRepositories para evitar que Xray sirva plugins de Apache corruptos. -->
 
     <dependencies>
         <!-- Cucumber -->
@@ -65,7 +53,7 @@
 
     <build>
         <plugins>
-            <!-- ✅ Plugin para limpiar: Versión forzada (3.3.1) para evitar el POM corrupto. Se buscará en Central. -->
+            <!-- ✅ Plugin para limpiar: Versión forzada (3.3.1) y ahora se buscará en Central (limpio). -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-clean-plugin</artifactId>
@@ -101,7 +89,14 @@
                 <artifactId>xray-maven-plugin</artifactId>
                 <version>${xray.plugin.version}</version>
                 
-                <!-- Eliminamos <dependencies> de aquí para no confundir la búsqueda de plugins. -->
+                <!-- 🚨 AÑADIDO: Definimos el REPOSITORIO DE DEPENDENCIA aquí para el plugin de Xray -->
+                <dependencies>
+                    <dependency>
+                        <groupId>com.xpandit.xray</groupId>
+                        <artifactId>xray-maven-plugin</artifactId>
+                        <version>${xray.plugin.version}</version>
+                    </dependency>
+                </dependencies>
 
                 <configuration>
                     <jiraBaseUrl>https://xray.cloud.getxray.app</jiraBaseUrl>
@@ -124,7 +119,7 @@
         </plugins>
     </build>
     
-    <!-- Repositorio de Dependencias (Sigue siendo necesario para cualquier dependencia del plugin de Xray). -->
+    <!-- Repositorio de Dependencias: Ahora solo se usa para descargar las dependencias, no los plugins. -->
     <repositories>
         <repository>
             <id>xpandit-xray-repo</id>

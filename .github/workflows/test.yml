@@ -88,9 +88,10 @@ jobs:
           # 3. Subir Resultados (Importación final, quitamos /preimport)
           echo "Iniciando subida a Xray para actualizar la ejecución: $TEST_EXECUTION_KEY..."
           
-          CURL_RESPONSE=$(curl -X POST "https://xray.cloud.getxray.app/api/v2/import/execution/cucumber?testExecutionKey=$TEST_EXECUTION_KEY" \
-            -H "Authorization: Bearer ${XRAY_TOKEN}" \
-            -F "file=@$REPORT_FILE")
+          CURL_RESPONSE=$(curl -X POST "https://xray.cloud.getxray.app/api/v2/import/execution/cucumber/multipart?testExecutionKey=$TEST_EXECUTION_KEY" \
+              -H "Authorization: Bearer ${XRAY_TOKEN}" \
+              -F "file=@$REPORT_FILE")
+
 
           echo "=================================================="
           echo "RESPUESTA DE XRAY (Para confirmar el éxito o el error de formato):"

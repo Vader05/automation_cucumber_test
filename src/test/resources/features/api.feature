@@ -1,6 +1,7 @@
-@P123-6
 Feature: Pruebas de API
-
+  Verificar el endpoint /users
+  
+  @P123-6
   Scenario: Obtener usuario por ID
     Given la API está disponible
     When hago una petición GET a "/users/1"

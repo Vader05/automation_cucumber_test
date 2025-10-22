@@ -53,13 +53,12 @@ jobs:
           echo "XRAY_TOKEN=${XRAY_TOKEN}" >> $GITHUB_ENV
 
       # 📤 5️⃣ Subir resultados a Xray Cloud
-      - name: Upload Cucumber results to Xray (Cloud API v2)
+      - name: Upload Cucumber results to Xray (Cloud Cucumber Endpoint)
         if: always()
         env:
           XRAY_TOKEN: ${{ env.XRAY_TOKEN }}
         run: |
           REPORT_FILE="target/cucumber.json"
-          TEST_EXECUTION_KEY="P123-16"
 
           echo "Verificando archivo de resultados..."
           if [ ! -f "$REPORT_FILE" ]; then
@@ -70,25 +69,11 @@ jobs:
           FILE_SIZE=$(wc -c < "$REPORT_FILE")
           echo "📏 Tamaño del archivo de reporte: $FILE_SIZE bytes"
 
-          echo "📄 Creando payload para Xray Cloud..."
-          cat <<EOF > payload.json
-          {
-            "testExecutionKey": "${TEST_EXECUTION_KEY}",
-            "info": {
-              "project": "P123",
-              "summary": "Resultados automáticos desde GitHub Actions",
-              "description": "Subida automática desde workflow run $(date -u)",
-              "testEnvironments": ["staging"]
-            },
-            "tests": $(cat ${REPORT_FILE})
-          }
-          EOF
-
-          echo "📡 Subiendo resultados a Xray Cloud (API v2)..."
-          RESPONSE=$(curl -s -X POST "https://xray.cloud.getxray.app/api/v2/import/execution" \
+          echo "📡 Subiendo resultados de Cucumber a Xray Cloud..."
+          RESPONSE=$(curl -s -X POST "https://xray.cloud.getxray.app/api/v2/import/execution/cucumber" \
             -H "Authorization: Bearer ${XRAY_TOKEN}" \
             -H "Content-Type: application/json" \
-            -d @payload.json)
+            -d @"${REPORT_FILE}")
 
           echo "=================================================="
           echo "📤 RESPUESTA DE XRAY CLOUD:"

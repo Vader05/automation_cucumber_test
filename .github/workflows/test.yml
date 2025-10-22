@@ -1,8 +1,8 @@
 name: Run API Tests and Report to Xray
 
 on:
-  workflow_dispatch:      # Permite ejecución manual desde GitHub UI
-  repository_dispatch:    # Permite lanzarlo desde Jira/Xray vía API
+  workflow_dispatch:        # Permite ejecución manual desde GitHub UI
+  repository_dispatch:      # Permite ejecución remota desde Jira/Xray vía API
 
 jobs:
   run-tests:
@@ -22,12 +22,15 @@ jobs:
 
       # 🧪 3️⃣ Ejecutar los tests de Cucumber
       - name: Run Cucumber tests
-        continue-on-error: true    # Permite continuar aunque falle algún test
+        id: run_tests
+        continue-on-error: true
         run: |
+          echo "Ejecutando pruebas con Maven..."
           chmod +x mvnw || true
-          ./mvnw test
+          ./mvnw test -Dcucumber.plugin="json:target/cucumber.json"
+          echo "Ejecución de pruebas finalizada."
 
-      # 🔐 4️⃣ Obtener Token de Xray
+      # 🔐 4️⃣ Obtener Token de Xray Cloud
       - name: Get Xray Token
         id: get_token
         env:
@@ -35,77 +38,70 @@ jobs:
           XRAY_CLIENT_SECRET: ${{ secrets.XRAY_CLIENT_SECRET }}
         if: always()
         run: |
-          echo "Obteniendo token de Xray..."
-          XRAY_TOKEN=$(curl -s -X POST "https://xray.cloud.getxray.app/api/v2/authenticate" \
+          echo "Obteniendo token de Xray Cloud..."
+          RESPONSE=$(curl -s -X POST "https://xray.cloud.getxray.app/api/v2/authenticate" \
             -H "Content-Type: application/json" \
-            -d "{\"client_id\": \"${XRAY_CLIENT_ID}\", \"client_secret\": \"${XRAY_CLIENT_SECRET}\"}" | tr -d '"')
-
+            -d "{\"client_id\": \"${XRAY_CLIENT_ID}\", \"client_secret\": \"${XRAY_CLIENT_SECRET}\"}")
+          
+          XRAY_TOKEN=$(echo "$RESPONSE" | tr -d '"')
           if [ -z "$XRAY_TOKEN" ]; then
-            echo "ERROR: No se pudo obtener el token de Xray."
+            echo "❌ ERROR: No se pudo obtener el token de Xray."
             exit 1
           fi
 
+          echo "✅ Token obtenido correctamente."
           echo "XRAY_TOKEN=${XRAY_TOKEN}" >> $GITHUB_ENV
-          echo "Token obtenido correctamente."
 
-        # 📤 5️⃣ Subir resultados a Xray (Cloud)
+      # 📤 5️⃣ Subir resultados a Xray Cloud
       - name: Upload Cucumber results to Xray
         if: always()
+        env:
+          XRAY_TOKEN: ${{ env.XRAY_TOKEN }}
         run: |
           REPORT_FILE="target/cucumber.json"
-          TEST_EXECUTION_KEY="P123-16"   # Clave del Test Execution en Jira/Xray
+          TEST_EXECUTION_KEY="P123-16"   # 👉 Cambia este valor por el de tu Test Execution real
 
-          if [ -z "${XRAY_TOKEN}" ]; then
-            echo "Error: XRAY_TOKEN no se pudo obtener. Saltando subida de resultados."
-            exit 0
-          fi
-
+          echo "Verificando archivo de resultados..."
           if [ ! -f "$REPORT_FILE" ]; then
-            echo "ERROR: No se encontró el archivo $REPORT_FILE"
+            echo "❌ ERROR: No se encontró el archivo $REPORT_FILE"
             exit 1
           fi
 
           FILE_SIZE=$(wc -c < "$REPORT_FILE")
-          echo "Tamaño del archivo de reporte: $FILE_SIZE bytes."
-          if [ "$FILE_SIZE" -lt 10 ]; then
-            echo "ADVERTENCIA: El archivo parece vacío o corrupto."
+          echo "📏 Tamaño del archivo de reporte: $FILE_SIZE bytes"
+          if [ "$FILE_SIZE" -lt 20 ]; then
+            echo "⚠️ ADVERTENCIA: El archivo de resultados parece vacío."
             exit 0
           fi
 
-          echo "=================================================="
-          echo "Contenido de $REPORT_FILE (DEBUG):"
-          cat $REPORT_FILE
-          echo "=================================================="
-
-          echo "📄 Creando archivo info.json temporal..."
+          echo "📄 Creando archivo info.json..."
           cat <<EOF > info.json
           {
-            "testExecutionKey": "P123-16",
-            "info": {
-              "project": "P123",
-              "summary": "Resultados automáticos desde GitHub Actions",
-              "description": "Subida automática desde workflow run $(date -u)",
-              "version": "1.0",
-              "revision": "latest",
-              "user": "automation@xray",
-              "testEnvironments": ["staging"]
-            }
+            "testExecutionKey": "${TEST_EXECUTION_KEY}",
+            "project": "P123",
+            "summary": "Resultados automáticos desde GitHub Actions",
+            "description": "Subida automática desde workflow run $(date -u)",
+            "version": "1.0",
+            "revision": "latest",
+            "user": "automation@xray",
+            "testEnvironments": ["staging"]
           }
           EOF
 
-          echo "Contenido de info.json:"
-          cat info.json
-          echo "=================================================="
-
-          echo "📡 Subiendo resultados a Xray Cloud (multipart)..."
-
-          CURL_RESPONSE=$(curl -s -X POST "https://xray.cloud.getxray.app/api/v2/import/execution/cucumber/multipart" \
+          echo "📡 Subiendo resultados a Xray Cloud..."
+          RESPONSE=$(curl -s -X POST "https://xray.cloud.getxray.app/api/v2/import/execution/cucumber/multipart" \
             -H "Authorization: Bearer ${XRAY_TOKEN}" \
             -F "info=@info.json;type=application/json" \
             -F "results=@${REPORT_FILE};type=application/json")
 
           echo "=================================================="
-          echo "RESPUESTA DE XRAY:"
-          echo "$CURL_RESPONSE"
+          echo "📤 RESPUESTA DE XRAY CLOUD:"
+          echo "$RESPONSE"
           echo "=================================================="
 
+          if echo "$RESPONSE" | grep -q '"error"'; then
+            echo "❌ Error al subir resultados a Xray."
+            exit 1
+          else
+            echo "✅ Resultados subidos exitosamente a Xray Cloud."
+          fi

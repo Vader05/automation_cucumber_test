@@ -53,7 +53,7 @@ jobs:
         if: always()
         run: |
           REPORT_FILE="target/cucumber.json"
-          TEST_EXECUTION_KEY="P123-14"   # Clave del Test Execution en Jira/Xray
+          TEST_EXECUTION_KEY="P123-16"   # Clave del Test Execution en Jira/Xray
 
           if [ -z "${XRAY_TOKEN}" ]; then
             echo "Error: XRAY_TOKEN no se pudo obtener. Saltando subida de resultados."
@@ -80,7 +80,7 @@ jobs:
           echo "📄 Creando archivo info.json temporal..."
           cat <<EOF > info.json
           {
-            "testExecutionKey": "P123-14",
+            "testExecutionKey": "P123-16",
             "project": "P123",
             "summary": "Resultados automáticos desde GitHub Actions",
             "description": "Subida automática desde workflow run $(date -u)",

@@ -17,8 +17,20 @@
         <xray.plugin.version>3.5.0</xray.plugin.version>
     </properties>
 
-    <!-- Maven buscará los plugins de Apache en el repositorio central. -->
-    
+    <!-- 🛑 REINTRODUCIMOS ESTO: NECESARIO PARA QUE MAVEN ENCUENTRE EL PLUGIN DE XRAY 🛑 -->
+    <pluginRepositories>
+        <pluginRepository>
+            <id>xpandit-xray-repo</id>
+            <url>https://xpeho.jfrog.io/xpeho/xray-maven-repo</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </pluginRepository>
+    </pluginRepositories>
+
     <dependencies>
         <!-- Cucumber -->
         <dependency>
@@ -53,7 +65,6 @@
 
     <build>
         <plugins>
-            <!-- Plugin de Clean: Eliminado. Maven usará su versión integrada por defecto. -->
             
             <!-- Plugin para compilar - Versión actualizada -->
             <plugin>
@@ -84,8 +95,6 @@
                 <artifactId>xray-maven-plugin</artifactId>
                 <version>${xray.plugin.version}</version>
                 
-                <!-- Eliminamos dependencias internas, dependemos del repositorio global. -->
-
                 <configuration>
                     <jiraBaseUrl>https://xray.cloud.getxray.app</jiraBaseUrl>
                     <username>${env.XRAY_CLIENT_ID}</username>
@@ -107,7 +116,7 @@
         </plugins>
     </build>
     
-    <!-- Repositorio de Dependencias: Necesario para que Maven encuentre el Plugin de Xray. -->
+    <!-- Repositorio de Dependencias: Necesario para que Maven encuentre las dependencias internas del Plugin de Xray. -->
     <repositories>
         <repository>
             <id>xpandit-xray-repo</id>

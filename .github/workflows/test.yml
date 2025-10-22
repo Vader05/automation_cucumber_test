@@ -53,13 +53,13 @@ jobs:
           echo "XRAY_TOKEN=${XRAY_TOKEN}" >> $GITHUB_ENV
 
       # 📤 5️⃣ Subir resultados a Xray Cloud
-      - name: Upload Cucumber results to Xray
+      - name: Upload Cucumber results to Xray (Cloud API v2)
         if: always()
         env:
           XRAY_TOKEN: ${{ env.XRAY_TOKEN }}
         run: |
           REPORT_FILE="target/cucumber.json"
-          TEST_EXECUTION_KEY="P123-16"   # 👉 Cambia este valor si corresponde
+          TEST_EXECUTION_KEY="P123-16"
 
           echo "Verificando archivo de resultados..."
           if [ ! -f "$REPORT_FILE" ]; then
@@ -69,32 +69,26 @@ jobs:
 
           FILE_SIZE=$(wc -c < "$REPORT_FILE")
           echo "📏 Tamaño del archivo de reporte: $FILE_SIZE bytes"
-          if [ "$FILE_SIZE" -lt 20 ]; then
-            echo "⚠️ ADVERTENCIA: El archivo de resultados parece vacío."
-            exit 0
-          fi
 
-          echo "📄 Creando archivo info.json con bloque 'info'..."
-          cat <<EOF > info.json
+          echo "📄 Creando payload para Xray Cloud..."
+          cat <<EOF > payload.json
           {
             "testExecutionKey": "${TEST_EXECUTION_KEY}",
             "info": {
               "project": "P123",
               "summary": "Resultados automáticos desde GitHub Actions",
               "description": "Subida automática desde workflow run $(date -u)",
-              "version": "1.0",
-              "revision": "latest",
-              "user": "automation@xray",
               "testEnvironments": ["staging"]
-            }
+            },
+            "tests": $(cat ${REPORT_FILE})
           }
           EOF
 
-          echo "📡 Subiendo resultados a Xray Cloud..."
-          RESPONSE=$(curl -s -X POST "https://xray.cloud.getxray.app/api/v2/import/execution/cucumber/multipart" \
+          echo "📡 Subiendo resultados a Xray Cloud (API v2)..."
+          RESPONSE=$(curl -s -X POST "https://xray.cloud.getxray.app/api/v2/import/execution" \
             -H "Authorization: Bearer ${XRAY_TOKEN}" \
-            -F "info=@info.json;type=application/json" \
-            -F "results=@${REPORT_FILE};type=application/json")
+            -H "Content-Type: application/json" \
+            -d @payload.json)
 
           echo "=================================================="
           echo "📤 RESPUESTA DE XRAY CLOUD:"
@@ -107,3 +101,4 @@ jobs:
           else
             echo "✅ Resultados subidos exitosamente a Xray Cloud."
           fi
+

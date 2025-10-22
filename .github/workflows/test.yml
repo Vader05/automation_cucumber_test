@@ -80,16 +80,14 @@ jobs:
           echo "📄 Creando archivo info.json temporal..."
           cat <<EOF > info.json
           {
-            "testExecutionKey": "${TEST_EXECUTION_KEY}",
-            "info": {
-              "project": "P123",
-              "summary": "Resultados automáticos desde GitHub Actions",
-              "description": "Subida automática desde workflow run $(date)",
-              "version": "1.0",
-              "revision": "latest",
-              "user": "automation@xray",
-              "testEnvironments": ["staging"]
-            }
+            "testExecutionKey": "P123-14",
+            "project": "P123",
+            "summary": "Resultados automáticos desde GitHub Actions",
+            "description": "Subida automática desde workflow run $(date -u)",
+            "version": "1.0",
+            "revision": "latest",
+            "user": "automation@xray",
+            "testEnvironments": ["staging"]
           }
           EOF
 

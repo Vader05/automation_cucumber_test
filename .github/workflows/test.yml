@@ -24,7 +24,7 @@ jobs:
         run: |
           chmod +x mvnw
           ./mvnw test
-          
+
       # PASO 1: Obtener Token de Xray
       # El token se exporta a GITHUB_ENV para que esté disponible en el siguiente paso.
       - name: Get Xray Token
@@ -77,17 +77,26 @@ jobs:
           cat $REPORT_FILE
           echo "=================================================="
           
-          # 3. Subir Resultados (Quitamos -s para que muestre la respuesta JSON de Xray)
-          echo "Iniciando subida a Xray para actualizar la ejecución: $TEST_EXECUTION_KEY..."
+          # 3. Subir Resultados (Cambiamos a /preimport para VALIDAR el formato)
+          echo "Iniciando VALIDACIÓN del formato JSON con /preimport..."
           
-          CURL_RESPONSE=$(curl -X POST "https://xray.cloud.getxray.app/api/v2/import/execution/cucumber?testExecutionKey=$TEST_EXECUTION_KEY" \
+          CURL_RESPONSE=$(curl -X POST "https://xray.cloud.getxray.app/api/v2/import/execution/cucumber/preimport?testExecutionKey=$TEST_EXECUTION_KEY" \
             -H "Authorization: Bearer ${XRAY_TOKEN}" \
             -F "file=@$REPORT_FILE")
 
           echo "=================================================="
-          echo "RESPUESTA DE XRAY (Para confirmar el éxito):"
+          echo "RESPUESTA DE XRAY /preimport (Busque errores de formato aquí):"
           echo $CURL_RESPONSE
           echo "=================================================="
 
-          # Opcional: Verificar el estado HTTP si fuera necesario, pero el JSON de Xray es suficiente.
-          
+          # Si la preimportación es exitosa, procedemos a la importación real
+          if echo $CURL_RESPONSE | grep -q 'error'; then
+            echo "La preimportación falló. El JSON tiene un error de formato o está incompleto."
+            exit 0
+          else
+            echo "Preimportación exitosa. Iniciando IMPORTACIÓN real..."
+            # Ahora importamos de verdad
+            curl -X POST "https://xray.cloud.getxray.app/api/v2/import/execution/cucumber?testExecutionKey=$TEST_EXECUTION_KEY" \
+              -H "Authorization: Bearer ${XRAY_TOKEN}" \
+              -F "file=@$REPORT_FILE"
+          fi

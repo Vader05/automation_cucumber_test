@@ -1,10 +1,8 @@
 name: Run API Tests and Report to Xray
 
 on:
-  # Permite ejecutar el workflow manualmente desde la interfaz de GitHub
-  workflow_dispatch:      
-  # Permite lanzarlo desde Jira/Xray vía API
-  repository_dispatch:    
+  workflow_dispatch:      # permite ejecución manual desde GitHub UI
+  repository_dispatch:  # permite lanzarlo desde Jira/Xray vía API
 
 jobs:
   run-tests:
@@ -19,28 +17,82 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      # Ejecutamos las pruebas y el plugin de Xray
-      - name: Run Cucumber tests and Import Results
-        # Usamos 'always()' para asegurar que este paso se ejecute incluso si los tests fallan, 
-        # y así obtener el reporte de errores.
-        if: always()
-        env:
-          # Estas variables de entorno son necesarias para que el plugin de Maven las lea 
-          # (configuradas en tu pom.xml con ${env.XRAY_CLIENT_ID})
-          XRAY_CLIENT_ID: ${{ secrets.XRAY_CLIENT_ID }}
-          XRAY_CLIENT_SECRET: ${{ secrets.XRAY_CLIENT_SECRET }}
+      - name: Run Cucumber tests
+        # Agregamos 'continue-on-error: true' para que el workflow continúe
+        # incluso si hay fallos en los tests, asegurando la subida de resultados.
+        continue-on-error: true 
         run: |
           chmod +x mvnw
+          ./mvnw test
+
+      # PASO 1: Obtener Token de Xray
+      # El token se exporta a GITHUB_ENV para que esté disponible en el siguiente paso.
+      - name: Get Xray Token
+        id: get_token
+        env:
+          XRAY_CLIENT_ID: ${{ secrets.XRAY_CLIENT_ID }}
+          XRAY_CLIENT_SECRET: ${{ secrets.XRAY_CLIENT_SECRET }}
+        # Se ejecuta siempre.
+        if: always()
+        run: |
+          # 1. Obtener token de Xray
+          XRAY_TOKEN=$(curl -s -X POST "https://xray.cloud.getxray.app/api/v2/authenticate" \
+            -H "Content-Type: application/json" \
+            -d "{\"client_id\": \"${XRAY_CLIENT_ID}\", \"client_secret\": \"${XRAY_CLIENT_SECRET}\"}" | tr -d '"')
+
+          # 2. Exportar el token para el siguiente paso
+          echo "XRAY_TOKEN=${XRAY_TOKEN}" >> $GITHUB_ENV
           
-          echo "Iniciando la ejecución de pruebas con el objetivo 'install'..."
-          # El comando 'install' ejecuta la fase 'test', que a su vez ejecuta Surefire.
-          # La fase 'post-integration-test' (donde configuraste el plugin Xray) se ejecuta después.
-          ./mvnw clean install
-          
-          # Si el comando install falla (debido a fallos en los tests), 
-          # forzamos la ejecución del plugin Xray para subir los resultados parciales.
-          if [ $? -ne 0 ]; then
-            echo "La ejecución de pruebas falló. Forzando la importación de resultados con el plugin de Xray..."
-            # Forzamos la ejecución del goal 'import-results' del plugin Xray.
-            ./mvnw com.xpandit.xray:xray-maven-plugin:3.5.0:import-results
+          # 3. Impresión para depuración
+          echo "Token obtenido y exportado."
+          echo "Token (primeros 10 caracteres): ${XRAY_TOKEN::10}..."
+
+
+      # PASO 2: Subir Resultados a Xray (Importación final)
+      - name: Upload Cucumber results to Xray
+        # Se ejecuta siempre.
+        if: always()
+        run: |
+          REPORT_FILE="target/cucumber.json"
+
+          # 🛑🛑 CLAVE DE LA EJECUCIÓN: P123-14 (Test Execution existente)
+          TEST_EXECUTION_KEY="P123-14" 
+
+          # 1. Verificar si el token existe
+          if [ -z "${XRAY_TOKEN}" ]; then
+            echo "Error: XRAY_TOKEN no se pudo obtener. Saltando subida de resultados."
+            exit 0
           fi
+
+          # 2. Verificar la existencia y tamaño del archivo
+          if [ ! -f "$REPORT_FILE" ]; then
+            echo "ERROR CRÍTICO: Archivo de reporte no encontrado en $REPORT_FILE."
+            exit 1 
+          fi
+          
+          # Usamos 'wc -c' para obtener el tamaño en bytes
+          FILE_SIZE=$(wc -c < "$REPORT_FILE")
+          echo "Tamaño del archivo de reporte: $FILE_SIZE bytes."
+          if [ "$FILE_SIZE" -lt 10 ]; then
+            echo "ADVERTENCIA: El archivo de reporte es demasiado pequeño. Podría estar vacío o corrupto."
+            exit 0
+          fi
+
+
+          # *** PASO CLAVE DE DIAGNÓSTICO ***
+          echo "=================================================="
+          echo "Contenido de $REPORT_FILE (DEBUG):"
+          cat $REPORT_FILE
+          echo "=================================================="
+          
+          # 3. Subir Resultados (Importación final, quitamos /preimport)
+          echo "Iniciando subida a Xray para actualizar la ejecución: $TEST_EXECUTION_KEY..."
+          
+          CURL_RESPONSE=$(curl -X POST "https://xray.cloud.getxray.app/api/v2/import/execution/cucumber?testExecutionKey=$TEST_EXECUTION_KEY" \
+            -H "Authorization: Bearer ${XRAY_TOKEN}" \
+            -F "file=@$REPORT_FILE")
+
+          echo "=================================================="
+          echo "RESPUESTA DE XRAY (Para confirmar el éxito o el error de formato):"
+          echo $CURL_RESPONSE
+          echo "=================================================="

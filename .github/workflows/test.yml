@@ -77,12 +77,24 @@ jobs:
           cat $REPORT_FILE
           echo "=================================================="
 
+          echo "📄 Creando archivo info.json temporal..."
+          cat <<EOF > info.json
+          {
+            "testExecutionKey": "${TEST_EXECUTION_KEY}",
+            "summary": "Resultados automáticos desde GitHub Actions",
+            "description": "Subida automática desde workflow run $(date)"
+          }
+          EOF
+
+          echo "Contenido de info.json:"
+          cat info.json
+          echo "=================================================="
+
           echo "📡 Subiendo resultados a Xray Cloud (multipart)..."
 
-          # ✅ FIX: el campo 'info' debe incluir el tipo correctamente en multipart
           CURL_RESPONSE=$(curl -s -X POST "https://xray.cloud.getxray.app/api/v2/import/execution/cucumber/multipart" \
             -H "Authorization: Bearer ${XRAY_TOKEN}" \
-            -F "info={\"testExecutionKey\":\"${TEST_EXECUTION_KEY}\",\"summary\":\"Resultados automáticos desde GitHub Actions\",\"description\":\"Subida automática desde workflow run $(date)\"};type=application/json" \
+            -F "info=@info.json;type=application/json" \
             -F "results=@${REPORT_FILE};type=application/json")
 
           echo "=================================================="

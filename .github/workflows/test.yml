@@ -1,101 +1,92 @@
 name: Run API Tests and Report to Xray
 
 on:
-  workflow_dispatch:      # permite ejecución manual desde GitHub UI
-  repository_dispatch:  # permite lanzarlo desde Jira/Xray vía API
+  workflow_dispatch:      # Permite ejecución manual desde GitHub UI
+  repository_dispatch:    # Permite lanzarlo desde Jira/Xray vía API
 
 jobs:
   run-tests:
     runs-on: ubuntu-latest
+
     steps:
+      # 📦 1️⃣ Descargar el código del repositorio
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # ☕ 2️⃣ Configurar Java (usa JDK 17)
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
+      # 🧪 3️⃣ Ejecutar los tests de Cucumber
       - name: Run Cucumber tests
-        # Agregamos 'continue-on-error: true' para que el workflow continúe
-        # incluso si hay fallos en los tests, asegurando la subida de resultados.
-        continue-on-error: true 
+        continue-on-error: true    # Permite continuar aunque falle algún test
         run: |
-          chmod +x mvnw
+          chmod +x mvnw || true
           ./mvnw test
 
-      # PASO 1: Obtener Token de Xray
-      # El token se exporta a GITHUB_ENV para que esté disponible en el siguiente paso.
+      # 🔐 4️⃣ Obtener Token de Xray
       - name: Get Xray Token
         id: get_token
         env:
           XRAY_CLIENT_ID: ${{ secrets.XRAY_CLIENT_ID }}
           XRAY_CLIENT_SECRET: ${{ secrets.XRAY_CLIENT_SECRET }}
-        # Se ejecuta siempre.
         if: always()
         run: |
-          # 1. Obtener token de Xray
+          echo "Obteniendo token de Xray..."
           XRAY_TOKEN=$(curl -s -X POST "https://xray.cloud.getxray.app/api/v2/authenticate" \
             -H "Content-Type: application/json" \
             -d "{\"client_id\": \"${XRAY_CLIENT_ID}\", \"client_secret\": \"${XRAY_CLIENT_SECRET}\"}" | tr -d '"')
 
-          # 2. Exportar el token para el siguiente paso
+          if [ -z "$XRAY_TOKEN" ]; then
+            echo "ERROR: No se pudo obtener el token de Xray."
+            exit 1
+          fi
+
           echo "XRAY_TOKEN=${XRAY_TOKEN}" >> $GITHUB_ENV
-          
-          # 3. Impresión para depuración
-          echo "Token obtenido y exportado."
-          echo "Token (primeros 10 caracteres): ${XRAY_TOKEN::10}..."
+          echo "Token obtenido correctamente."
 
-
-      # PASO 2: Subir Resultados a Xray (Importación final)
+        # 📤 5️⃣ Subir resultados a Xray (Cloud)
       - name: Upload Cucumber results to Xray
-        # Se ejecuta siempre.
         if: always()
         run: |
           REPORT_FILE="target/cucumber.json"
+          TEST_EXECUTION_KEY="P123-14"   # Clave del Test Execution en Jira/Xray
 
-          # 🛑🛑 CLAVE DE LA EJECUCIÓN: P123-14 (Test Execution existente)
-          TEST_EXECUTION_KEY="P123-14" 
-
-          # 1. Verificar si el token existe
           if [ -z "${XRAY_TOKEN}" ]; then
             echo "Error: XRAY_TOKEN no se pudo obtener. Saltando subida de resultados."
             exit 0
           fi
 
-          # 2. Verificar la existencia y tamaño del archivo
           if [ ! -f "$REPORT_FILE" ]; then
-            echo "ERROR CRÍTICO: Archivo de reporte no encontrado en $REPORT_FILE."
-            exit 1 
+            echo "ERROR: No se encontró el archivo $REPORT_FILE"
+            exit 1
           fi
-          
-          # Usamos 'wc -c' para obtener el tamaño en bytes
+
           FILE_SIZE=$(wc -c < "$REPORT_FILE")
           echo "Tamaño del archivo de reporte: $FILE_SIZE bytes."
           if [ "$FILE_SIZE" -lt 10 ]; then
-            echo "ADVERTENCIA: El archivo de reporte es demasiado pequeño. Podría estar vacío o corrupto."
+            echo "ADVERTENCIA: El archivo parece vacío o corrupto."
             exit 0
           fi
 
-
-          # *** PASO CLAVE DE DIAGNÓSTICO ***
           echo "=================================================="
           echo "Contenido de $REPORT_FILE (DEBUG):"
           cat $REPORT_FILE
           echo "=================================================="
-          
-          # 3. Subir Resultados (Importación final, quitamos /preimport)
-          echo "Iniciando subida a Xray para actualizar la ejecución: $TEST_EXECUTION_KEY..."
-          
-          CURL_RESPONSE=$(curl -X POST "https://xray.cloud.getxray.app/api/v2/import/execution/cucumber/multipart" \
+
+          echo "📡 Subiendo resultados a Xray Cloud (multipart)..."
+
+          # ✅ FIX: el campo 'info' debe incluir el tipo correctamente en multipart
+          CURL_RESPONSE=$(curl -s -X POST "https://xray.cloud.getxray.app/api/v2/import/execution/cucumber/multipart" \
             -H "Authorization: Bearer ${XRAY_TOKEN}" \
-            -F "results=@$REPORT_FILE" \
-            -F "info={\"testExecutionKey\": \"$TEST_EXECUTION_KEY\", \"summary\": \"Resultados automáticos desde GitHub Actions\"};type=application/json")
-
-
+            -F "info={\"testExecutionKey\":\"${TEST_EXECUTION_KEY}\",\"summary\":\"Resultados automáticos desde GitHub Actions\",\"description\":\"Subida automática desde workflow run $(date)\"};type=application/json" \
+            -F "results=@${REPORT_FILE};type=application/json")
 
           echo "=================================================="
-          echo "RESPUESTA DE XRAY (Para confirmar el éxito o el error de formato):"
-          echo $CURL_RESPONSE
+          echo "RESPUESTA DE XRAY:"
+          echo "$CURL_RESPONSE"
           echo "=================================================="
+

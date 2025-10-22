@@ -5,49 +5,20 @@
                              http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
     <modelVersion>4.0.0</modelVersion>
-
+    <!-- ... tu groupId, artifactId, version, properties ... -->
     <groupId>com.ejemplo.api</groupId>
     <artifactId>api-cucumber</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <properties>
-        <!-- Mantener Java 8 según tu configuración original -->
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- Agregar variable para la versión del plugin de Xray -->
+        <xray.plugin.version>3.5.0</xray.plugin.version> 
     </properties>
 
-    <dependencies>
-        <!-- Cucumber (Versión 7.14.0 - Correcto) -->
-        <dependency>
-            <groupId>io.cucumber</groupId>
-            <artifactId>cucumber-java</artifactId>
-            <version>7.14.0</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.cucumber</groupId>
-            <artifactId>cucumber-junit</artifactId>
-            <version>7.14.0</version>
-            <scope>test</scope>
-        </dependency>
-
-        <!-- RestAssured (Versión 5.4.0 - Correcto) -->
-        <dependency>
-            <groupId>io.rest-assured</groupId>
-            <artifactId>rest-assured</artifactId>
-            <version>5.4.0</version>
-            <scope>compile</scope>
-        </dependency>
-
-        <!-- JUnit (Versión 4.13.2 - Correcto) -->
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.13.2</version>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
+    <!-- ... tus dependencias ... -->
 
     <build>
         <plugins>
@@ -62,19 +33,44 @@
                 </configuration>
             </plugin>
 
-            <!-- 🛑 Plugin para ejecutar pruebas (CORRECCIÓN CRÍTICA AQUÍ) 🛑 -->
+            <!-- Plugin para ejecutar pruebas (Surefire, sin cambios) -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>2.22.2</version>
                 <configuration>
-                    <!-- Solo le decimos a Surefire que ejecute el Runner -->
                     <includes>
                         <include>**/TestRunner.java</include>
                     </includes>
-                    <!-- 🛑 ELIMINAMOS las configuraciones duplicadas de Cucumber Options 🛑 -->
-                    <!-- <systemPropertyVariables>...</systemPropertyVariables> YA NO VA -->
                 </configuration>
+            </plugin>
+            
+            <!-- 🛑 NUEVO: Plugin de Xray para Maven 🛑 -->
+            <plugin>
+                <groupId>com.xpandit.xray</groupId>
+                <artifactId>xray-maven-plugin</artifactId>
+                <version>${xray.plugin.version}</version>
+                <configuration>
+                    <jiraBaseUrl>https://xray.cloud.getxray.app</jiraBaseUrl>
+                    <!-- Usamos variables de entorno que ya tienes en GitHub Actions -->
+                    <username>${env.XRAY_CLIENT_ID}</username>
+                    <password>${env.XRAY_CLIENT_SECRET}</password>
+                    
+                    <!-- Configuración de importación -->
+                    <format>cucumber</format>
+                    <reportFile>${project.basedir}/target/cucumber.json</reportFile>
+                    <projectKey>P123</projectKey>
+                    <!-- CRÍTICO: Indica a Xray que actualice P123-14 con los resultados -->
+                    <testExecutionKey>P123-14</testExecutionKey> 
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>post-integration-test</phase>
+                        <goals>
+                            <goal>import-results</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

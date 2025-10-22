@@ -17,19 +17,7 @@
         <xray.plugin.version>3.5.0</xray.plugin.version>
     </properties>
 
-    <!-- REINTRODUCIMOS ESTO: NECESARIO PARA QUE MAVEN ENCUENTRE EL PLUGIN DE XRAY -->
-    <pluginRepositories>
-        <pluginRepository>
-            <id>xpandit-xray-repo</id>
-            <url>https://xpeho.jfrog.io/xpeho/xray-maven-repo</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </pluginRepository>
-    </pluginRepositories>
+    <!-- 🛑 ELIMINAMOS pluginRepositories para evitar que Xray sirva plugins de Apache corruptos. -->
 
     <dependencies>
         <!-- Cucumber -->
@@ -65,7 +53,7 @@
 
     <build>
         <plugins>
-            <!-- 🛑 AÑADIDO: Plugin para limpiar - Versión forzada para evitar el POM corrupto en caché 🛑 -->
+            <!-- ✅ Plugin para limpiar: Versión forzada (3.3.1) y ahora se buscará en Central (limpio). -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-clean-plugin</artifactId>
@@ -101,6 +89,15 @@
                 <artifactId>xray-maven-plugin</artifactId>
                 <version>${xray.plugin.version}</version>
                 
+                <!-- 🚨 AÑADIDO: Definimos el REPOSITORIO DE DEPENDENCIA aquí para el plugin de Xray -->
+                <dependencies>
+                    <dependency>
+                        <groupId>com.xpandit.xray</groupId>
+                        <artifactId>xray-maven-plugin</artifactId>
+                        <version>${xray.plugin.version}</version>
+                    </dependency>
+                </dependencies>
+
                 <configuration>
                     <jiraBaseUrl>https://xray.cloud.getxray.app</jiraBaseUrl>
                     <username>${env.XRAY_CLIENT_ID}</username>
@@ -122,7 +119,7 @@
         </plugins>
     </build>
     
-    <!-- Repositorio de Dependencias: Necesario para que Maven encuentre las dependencias internas del Plugin de Xray. -->
+    <!-- Repositorio de Dependencias: Ahora solo se usa para descargar las dependencias, no los plugins. -->
     <repositories>
         <repository>
             <id>xpandit-xray-repo</id>

@@ -18,30 +18,24 @@ jobs:
           java-version: '17'
 
       - name: Run Cucumber tests
-        # Agregué '|| true' para que el job no falle inmediatamente si los tests fallan.
-        # Esto asegura que el paso de subir resultados siempre se ejecute, incluso sin 'if: always()'.
-        # Nota: Puedes eliminar 'if: always()' del siguiente paso si usas '|| true'.
+        # Agregamos 'continue-on-error: true' para que el workflow continúe
+        # incluso si hay fallos en los tests, asegurando la subida de resultados.
+        continue-on-error: true 
         run: |
           chmod +x mvnw
           ./mvnw test
-        # Agregando '|| true' para que el paso no detenga el workflow si falla el test, 
-        # permitiendo que el siguiente paso de subida de resultados (Upload) se ejecute.
-        # Si prefieres que el paso falle pero el siguiente se ejecute, usa 'continue-on-error: true'
-        # o confía en el 'if: always()' del paso de subida.
-        continue-on-error: true 
-
-      # PASO 1: Obtener Token de Xray (separado para diagnóstico)
-      # Usamos el GITHUB_ENV para pasar la variable XRAY_TOKEN al siguiente paso.
+          
+      # PASO 1: Obtener Token de Xray
+      # El token se exporta a GITHUB_ENV para que esté disponible en el siguiente paso.
       - name: Get Xray Token
         id: get_token
         env:
           XRAY_CLIENT_ID: ${{ secrets.XRAY_CLIENT_ID }}
           XRAY_CLIENT_SECRET: ${{ secrets.XRAY_CLIENT_SECRET }}
-        # Usamos 'always()' para asegurarnos de que se ejecute incluso si los tests fallaron.
+        # Se ejecuta siempre.
         if: always()
         run: |
           # 1. Obtener token de Xray
-          # Truncamos el JSON usando 'tr -d '"' para obtener solo la cadena del token.
           XRAY_TOKEN=$(curl -s -X POST "https://xray.cloud.getxray.app/api/v2/authenticate" \
             -H "Content-Type: application/json" \
             -d "{\"client_id\": \"${XRAY_CLIENT_ID}\", \"client_secret\": \"${XRAY_CLIENT_SECRET}\"}" | tr -d '"')
@@ -54,12 +48,16 @@ jobs:
           echo "Token (primeros 10 caracteres): ${XRAY_TOKEN::10}..."
 
 
-      # PASO 2: Subir Resultados a Xray (separado)
+      # PASO 2: Subir Resultados a Xray (usando testExecutionKey)
       - name: Upload Cucumber results to Xray
-        # Usamos 'always()' para ejecutarlo incluso si el paso de tests falló.
+        # Se ejecuta siempre.
         if: always()
         run: |
           REPORT_FILE="target/cucumber.json"
+
+          # 🛑🛑 CLAVE DE TU PROYECTO: P123 (del ticket P123-14)
+          # 🛑🛑 CLAVE DE LA EJECUCIÓN: P123-14 (Test Execution existente)
+          TEST_EXECUTION_KEY="P123-14" 
 
           # 1. Verificar si el token existe
           if [ -z "${XRAY_TOKEN}" ]; then
@@ -79,8 +77,17 @@ jobs:
           cat $REPORT_FILE
           echo "=================================================="
           
-          # 3. Subir Resultados
-          echo "Iniciando subida a Xray..."
-          curl -s -X POST "https://xray.cloud.getxray.app/api/v2/import/execution/cucumber" \
+          # 3. Subir Resultados (Quitamos -s para que muestre la respuesta JSON de Xray)
+          echo "Iniciando subida a Xray para actualizar la ejecución: $TEST_EXECUTION_KEY..."
+          
+          CURL_RESPONSE=$(curl -X POST "https://xray.cloud.getxray.app/api/v2/import/execution/cucumber?testExecutionKey=$TEST_EXECUTION_KEY" \
             -H "Authorization: Bearer ${XRAY_TOKEN}" \
-            -F "file=@$REPORT_FILE"
+            -F "file=@$REPORT_FILE")
+
+          echo "=================================================="
+          echo "RESPUESTA DE XRAY (Para confirmar el éxito):"
+          echo $CURL_RESPONSE
+          echo "=================================================="
+
+          # Opcional: Verificar el estado HTTP si fuera necesario, pero el JSON de Xray es suficiente.
+          

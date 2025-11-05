@@ -8,3 +8,11 @@ Feature: Pruebas de API
     Then el código de respuesta debe ser 200
     And el campo "id" debe ser 1
     And el campo "name" debe ser "Leanne Graham"
+
+  @P123-23
+  Scenario: Obtener comentario por ID
+    Given la API está disponible
+    When hago una petición GET a "/comments/1"
+    Then el código de respuesta debe ser 200
+    And el campo "id" debe ser 1
+    And el campo "email" debe ser "Eliseo@gardner.biz"

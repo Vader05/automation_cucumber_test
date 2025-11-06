@@ -16,9 +16,8 @@ public class ApiSteps {
         baseURI = "http://localhost:3000";
     }
 
-    @When("el usuario hace una petición POST a {string}  con el siguiente contenido en JSON:")
+    @When("el usuario hace una petición POST a {string} con el siguiente contenido en JSON:")
     public void usuario_hace_peticion_post(String endpoint, String jsonBody) {
-
         response = given().contentType(ContentType.JSON).body(jsonBody).when().post(endpoint);
     }
 

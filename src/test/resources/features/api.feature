@@ -17,7 +17,7 @@ Feature: Transferencia bancaria
             }
             """
         Then el código de respuesta debe ser 200
-        And el "message" de respuesta debe ser "Transferencia exitosa"
+        And el "message" de respuesta debe ser "Transferencia exitosa"
 
     Scenario: Transferencia fallida por autenticación
         Given la API está disponible

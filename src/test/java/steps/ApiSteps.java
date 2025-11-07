@@ -13,7 +13,7 @@ public class ApiSteps {
 
     @Given("la API está disponible")
     public void la_api_esta_disponible() {
-        baseURI = "http://localhost:3000";
+        baseURI = "https://transfer-api-f9lg.onrender.com";
     }
 
     @When("el usuario hace una petición POST a {string} con el siguiente contenido en JSON:")
